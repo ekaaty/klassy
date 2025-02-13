@@ -52,7 +52,7 @@ public:
     virtual ~Decoration();
 
     //* paint
-    void paint(QPainter *painter, const QRect &repaintRegion) override;
+    void paint(QPainter *painter, const QRectF &repaintRegion) override;
 
     //* internal settings
     InternalSettingsPtr internalSettings() const
@@ -205,7 +205,7 @@ private:
     void updateDecorationColors(const QPalette &clientPalette, QByteArray uuid = "");
     void createButtons();
     void calculateWindowAndTitleBarShapes(const bool windowShapeOnly = false);
-    void paintTitleBar(QPainter *painter, const QRect &repaintRegion);
+    void paintTitleBar(QPainter *painter, const QRectF &repaintRegion);
     void updateShadow(const bool forceUpdateCache = false, bool noCache = false, const bool isThinWindowOutlineOverride = false);
     std::shared_ptr<KDecoration3::DecorationShadow> createShadowObject(QColor shadowColor, const bool isThinWindowOutlineOverride = false);
     void setScaledCornerRadius();
@@ -277,7 +277,7 @@ private:
     int m_scaledTitleBarRightMargin = 1;
 
     //* Rectangular area of titlebar without clipped corners
-    QRect m_titleRect;
+    QRectF m_titleRect;
 
     //* Exact titlebar path, with clipped rounded corners
     QPainterPath m_titleBarPath = QPainterPath();
@@ -304,11 +304,6 @@ private:
     //*flag to animate out an overridden thin window outline
     bool m_animateOutOverriddenThinWindowOutline = false;
 };
-
-auto Decoration::client()
-{
-    return window();
-}
 
 bool Decoration::hasBorders() const
 {
@@ -339,52 +334,52 @@ bool Decoration::hasNoSideBorders() const
 
 bool Decoration::isMaximized() const
 {
-    auto c = client();
+    auto c = window();
     return c->isMaximized() && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isMaximizedHorizontally() const
 {
-    auto c = client();
+    auto c = window();
     return c->isMaximizedHorizontally() && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isMaximizedVertically() const
 {
-    auto c = client();
+    auto c = window();
     return c->isMaximizedVertically() && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isLeftEdge() const
 {
-    auto c = client();
+    auto c = window();
     return (c->isMaximizedHorizontally() || c->adjacentScreenEdges().testFlag(Qt::LeftEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isRightEdge() const
 {
-    auto c = client();
+    auto c = window();
 
     return (c->isMaximizedHorizontally() || c->adjacentScreenEdges().testFlag(Qt::RightEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isTopEdge() const
 {
-    auto c = client();
+    auto c = window();
 
     return (c->isMaximizedVertically() || c->adjacentScreenEdges().testFlag(Qt::TopEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isBottomEdge() const
 {
-    auto c = client();
+    auto c = window();
 
     return (c->isMaximizedVertically() || c->adjacentScreenEdges().testFlag(Qt::BottomEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::hideTitleBar() const
 {
-    auto c = client();
+    auto c = window();
     return m_internalSettings->hideTitleBar() && !c->isShaded();
 }
 

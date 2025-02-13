@@ -182,15 +182,10 @@ void Decoration::setOpacity(qreal value)
     update();
 }
 
-auto Decoration::client()
-{
-    return window();
-}
-
 //________________________________________________________________
 QColor Decoration::titleBarColor(bool returnNonAnimatedColor) const
 {
-    auto c = client();
+    auto c = window();
     if (hideTitleBar() && !m_internalSettings->useTitleBarColorForAllBorders())
         return c->color(ColorGroup::Inactive, ColorRole::TitleBar);
 
@@ -212,7 +207,7 @@ QColor Decoration::titleBarColor(bool returnNonAnimatedColor) const
 //________________________________________________________________
 QColor Decoration::titleBarSeparatorColor() const
 {
-    auto c = client();
+    auto c = window();
     if (!m_internalSettings->drawTitleBarSeparator())
         return QColor();
     if (m_animation->state() == QAbstractAnimation::Running) {
@@ -229,7 +224,7 @@ QColor Decoration::overriddenOutlineColorAnimateIn() const
 {
     QColor color = m_thinWindowOutlineOverride;
     if (m_overrideOutlineFromButtonAnimation->state() == QAbstractAnimation::Running) {
-        auto c = client();
+        auto c = window();
         QColor originalColor;
         c->isActive() ? originalColor = m_originalThinWindowOutlineActivePreOverride : originalColor = m_originalThinWindowOutlineInactivePreOverride;
 
@@ -246,7 +241,7 @@ QColor Decoration::overriddenOutlineColorAnimateIn() const
 QColor Decoration::overriddenOutlineColorAnimateOut(const QColor &destinationColor)
 {
     if (m_overrideOutlineFromButtonAnimation->state() == QAbstractAnimation::Running) {
-        auto c = client();
+        auto c = window();
         QColor originalColor;
         c->isActive() ? originalColor = m_originalThinWindowOutlineActivePreOverride : originalColor = m_originalThinWindowOutlineInactivePreOverride;
 
@@ -274,7 +269,7 @@ QColor Decoration::overriddenOutlineColorAnimateOut(const QColor &destinationCol
 //________________________________________________________________
 QColor Decoration::fontColor(bool returnNonAnimatedColor) const
 {
-    auto c = client();
+    auto c = window();
 
     if (m_animation->state() == QAbstractAnimation::Running && !returnNonAnimatedColor) {
         return KColorUtils::mix(m_decorationColors->inactive()->titleBarText, m_decorationColors->active()->titleBarText);
@@ -290,7 +285,7 @@ bool Decoration::init()
 void Decoration::init()
 #endif
 {
-    auto c = client();
+    auto c = window();
 
     reconfigureMain(true);
     
@@ -423,7 +418,7 @@ void Decoration::init()
 //________________________________________________________________
 void Decoration::updateTitleBar()
 {
-    auto c = client();
+    auto c = window();
 
     const bool maximized = isMaximized();
     int width, height, x, y;
@@ -452,7 +447,7 @@ void Decoration::updateTitleBar()
 void Decoration::updateAnimationState()
 {
     if (m_shadowAnimation->duration() > 0) {
-        auto c = client();
+        auto c = window();
         m_shadowAnimation->setDirection(c->isActive() ? QAbstractAnimation::Forward : QAbstractAnimation::Backward);
         m_shadowAnimation->setEasingCurve(c->isActive() ? QEasingCurve::OutCubic : QEasingCurve::InCubic);
         if (m_shadowAnimation->state() != QAbstractAnimation::Running) {
@@ -464,7 +459,7 @@ void Decoration::updateAnimationState()
     }
 
     if (m_animation->duration() > 0) {
-        auto c = client();
+        auto c = window();
         m_animation->setDirection(c->isActive() ? QAbstractAnimation::Forward : QAbstractAnimation::Backward);
         if (m_animation->state() != QAbstractAnimation::Running) {
             m_animation->start();
@@ -544,7 +539,7 @@ int Decoration::borderSize(bool bottom) const
 //________________________________________________________________
 void Decoration::reconfigureMain(const bool noUpdateShadow)
 {
-    auto c = client();
+    auto c = window();
 
     SettingsProvider::self()->reconfigure();
     m_internalSettings = SettingsProvider::self()->internalSettings(this);
@@ -654,7 +649,7 @@ void Decoration::updateDecorationColors(const QPalette &clientPalette, QByteArra
     }
 
     if (generateColors) {
-        auto c = client();
+        auto c = window();
 
         QColor activeTitleBarBase = c->color(ColorGroup::Active, ColorRole::TitleBar);
         QColor inactiveTitlebarBase = c->color(ColorGroup::Inactive, ColorRole::TitleBar);
@@ -683,7 +678,7 @@ void Decoration::generateDecorationColorsOnClientPaletteUpdate(const QPalette &c
 
 void Decoration::generateDecorationColorsOnDecorationColorSettingsUpdate(QByteArray uuid)
 {
-    auto c = client();
+    auto c = window();
     QPalette clientPalette = c->palette();
 
     SettingsProvider::self()->reconfigure();
@@ -695,7 +690,7 @@ void Decoration::generateDecorationColorsOnDecorationColorSettingsUpdate(QByteAr
 
 void Decoration::generateDecorationColorsOnSystemColorSettingsUpdate(QByteArray uuid)
 {
-    auto c = client();
+    auto c = window();
     QPalette clientPalette = c->palette();
 
     SettingsProvider::self()->reconfigure();
@@ -738,7 +733,7 @@ void Decoration::setGlobalLookAndFeelOptions(QString lookAndFeelPackageName)
 //________________________________________________________________
 void Decoration::recalculateBorders()
 {
-    auto c = client();
+    auto c = window();
     auto s = settings();
 
     setScaledTitleBarTopBottomMargins();
@@ -850,7 +845,7 @@ void Decoration::updateButtonsGeometry()
 
             qreal shiftUpWithOutline = 0; // how much to shift up the icon to appear more centred - only do when there is a colorizeThinWindowOutlineWithButton
                                           // or not window outline none/shadow
-            if (!client()->isMaximized()
+            if (!window()->isMaximized()
                 && (((m_internalSettings->showOutlineOnHover(true) || m_internalSettings->showOutlineOnHover(false))
                      && (m_internalSettings->colorizeThinWindowOutlineWithButton()
                          || !((m_internalSettings->thinWindowOutlineStyle(true) == InternalSettings::EnumThinWindowOutlineStyle::WindowOutlineNone
@@ -1154,12 +1149,12 @@ void Decoration::updateButtonsGeometry()
 }
 
 //________________________________________________________________
-void Decoration::paint(QPainter *painter, const QRect &repaintRegion)
+void Decoration::paint(QPainter *painter, const QRectF &repaintRegion)
 {
     m_painting = true;
 
     // TODO: optimize based on repaintRegion
-    auto c = client();
+    auto c = window();
     auto s = settings();
 
     calculateWindowAndTitleBarShapes();
@@ -1212,12 +1207,12 @@ void Decoration::paint(QPainter *painter, const QRect &repaintRegion)
 
 void Decoration::calculateWindowAndTitleBarShapes(const bool windowShapeOnly)
 {
-    auto c = client();
+    auto c = window();
     auto s = settings();
 
     if (!windowShapeOnly || c->isShaded()) {
         // set titleBar geometry and path
-        m_titleRect = QRect(QPoint(0, 0), QSize(size().width(), borderTop()));
+        m_titleRect = QRectF(QPointF(0, 0), QSizeF(size().width(), borderTop()));
         m_titleBarPath.clear(); // clear the path for subsequent calls to this function
         if (isMaximized() || !s->isAlphaChannelSupported()) {
             m_titleBarPath.addRect(m_titleRect);
@@ -1246,9 +1241,9 @@ void Decoration::calculateWindowAndTitleBarShapes(const bool windowShapeOnly)
 }
 
 //________________________________________________________________
-void Decoration::paintTitleBar(QPainter *painter, const QRect &repaintRegion)
+void Decoration::paintTitleBar(QPainter *painter, const QRectF &repaintRegion)
 {
-    const auto c = client();
+    const auto c = window();
 
     if (!m_titleRect.intersects(repaintRegion)) {
         return;
@@ -1433,7 +1428,7 @@ QPair<QRect, Qt::Alignment> Decoration::captionRect() const
     if (hideTitleBar()) {
         return qMakePair(QRect(), Qt::AlignCenter);
     } else {
-        auto c = client();
+        auto c = window();
 
         int padding = m_internalSettings->titleSidePadding() * settings()->smallSpacing();
 
@@ -1480,7 +1475,7 @@ QPair<QRect, Qt::Alignment> Decoration::captionRect() const
 //________________________________________________________________
 void Decoration::updateShadow(const bool forceUpdateCache, bool noCache, const bool isThinWindowOutlineOverride)
 {
-    auto c = client();
+    auto c = window();
 
     // if the decoration is painting, abandon setting the shadow.
     // Setting the shadow at the same time as paint() being executed causes a EGL_BAD_SURFACE error and a SEGFAULT from Plasma 5.26 onwards.
@@ -1554,7 +1549,7 @@ void Decoration::updateShadow(const bool forceUpdateCache, bool noCache, const b
 //________________________________________________________________
 std::shared_ptr<KDecoration3::DecorationShadow> Decoration::createShadowObject(QColor shadowColor, const bool isThinWindowOutlineOverride)
 {
-    auto c = client();
+    auto c = window();
 
     // determine when a window outline does not need to be drawn (even when set to none, sometimes needs to be drawn if there is an animation)
     bool windowOutlineNone =
@@ -1675,7 +1670,7 @@ std::shared_ptr<KDecoration3::DecorationShadow> Decoration::createShadowObject(Q
 
 void Decoration::setThinWindowOutlineOverrideColor(const bool on, const QColor &color)
 {
-    auto c = client();
+    auto c = window();
 
     if (on) {
         if (!c->isMaximized()) {
@@ -1695,7 +1690,7 @@ void Decoration::setThinWindowOutlineOverrideColor(const bool on, const QColor &
 
 void Decoration::setThinWindowOutlineColor()
 {
-    auto c = client();
+    auto c = window();
 
     if (m_thinWindowOutlineOverride.isValid()) {
         m_thinWindowOutline = overriddenOutlineColorAnimateIn();
@@ -1741,7 +1736,7 @@ void Decoration::setThinWindowOutlineColor()
 void Decoration::setScaledTitleBarTopBottomMargins()
 {
     // access client
-    auto c = client();
+    auto c = window();
 
     qreal topMargin = m_internalSettings->titleBarTopMargin();
     qreal bottomMargin = m_internalSettings->titleBarBottomMargin();
@@ -1785,7 +1780,7 @@ void Decoration::setScaledCornerRadius()
 void Decoration::updateOpaque()
 {
     // access client
-    auto c = client();
+    auto c = window();
 
     if (isOpaqueTitleBar()) { // opaque titlebar colours
         if (c->isMaximized())
@@ -1827,7 +1822,7 @@ bool Decoration::isOpaqueTitleBar()
 int Decoration::titleBarSeparatorHeight() const
 {
     // access client
-    auto c = client();
+    auto c = window();
 
     if (m_internalSettings->drawTitleBarSeparator() && !c->isShaded() && !m_toolsAreaWillBeDrawn) {
         qreal height = 1;

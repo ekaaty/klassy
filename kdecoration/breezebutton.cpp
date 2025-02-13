@@ -133,7 +133,7 @@ Button *Button::create(KDecoration3::DecorationButtonType type, KDecoration3::De
 }
 
 //__________________________________________________________________
-void Button::paint(QPainter *painter, const QRect &repaintRegion)
+void Button::paint(QPainter *painter, const QRectF &repaintRegion)
 {
     if (!geometry().intersects(repaintRegion)) {
         return;
