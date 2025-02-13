@@ -16,7 +16,7 @@ LayoutName=org.kde.breeze.desktop
 [kwinrc][WindowSwitcher]
 LayoutName=org.kde.breeze.desktop
 
-[kwinrc][org.kde.kdecoration2]
+[kwinrc][org.kde.KDecoration3]
 library=org.kde.klassy
 theme=Klassy
 

@@ -14,9 +14,9 @@
 #include "colortools.h"
 #include "decorationcolors.h"
 
-#include <KDecoration2/DecoratedClient>
-#include <KDecoration2/Decoration>
-#include <KDecoration2/DecorationSettings>
+#include <KDecoration3/DecoratedWindow>
+#include <KDecoration3/Decoration>
+#include <KDecoration3/DecorationSettings>
 #include <KSharedConfig>
 
 #include <QPainterPath>
@@ -26,7 +26,7 @@
 
 #include <memory>
 
-namespace KDecoration2
+namespace KDecoration3
 {
 class DecorationButton;
 class DecorationButtonGroup;
@@ -40,7 +40,7 @@ enum struct ButtonBackgroundType {
     FullHeight,
 };
 
-class Decoration : public KDecoration2::Decoration
+class Decoration : public KDecoration3::Decoration
 {
     Q_OBJECT
 
@@ -142,12 +142,12 @@ public:
         return m_scaledCornerRadius;
     }
 
-    KDecoration2::DecorationButtonGroup *leftButtons()
+    KDecoration3::DecorationButtonGroup *leftButtons()
     {
         return m_leftButtons;
     }
 
-    KDecoration2::DecorationButtonGroup *rightButtons()
+    KDecoration3::DecorationButtonGroup *rightButtons()
     {
         return m_rightButtons;
     }
@@ -207,7 +207,7 @@ private:
     void calculateWindowAndTitleBarShapes(const bool windowShapeOnly = false);
     void paintTitleBar(QPainter *painter, const QRect &repaintRegion);
     void updateShadow(const bool forceUpdateCache = false, bool noCache = false, const bool isThinWindowOutlineOverride = false);
-    std::shared_ptr<KDecoration2::DecorationShadow> createShadowObject(QColor shadowColor, const bool isThinWindowOutlineOverride = false);
+    std::shared_ptr<KDecoration3::DecorationShadow> createShadowObject(QColor shadowColor, const bool isThinWindowOutlineOverride = false);
     void setScaledCornerRadius();
 
     //*@name border size
@@ -237,8 +237,8 @@ private:
 
     static KSharedConfig::Ptr s_kdeGlobalConfig;
     InternalSettingsPtr m_internalSettings;
-    KDecoration2::DecorationButtonGroup *m_leftButtons = nullptr;
-    KDecoration2::DecorationButtonGroup *m_rightButtons = nullptr;
+    KDecoration3::DecorationButtonGroup *m_leftButtons = nullptr;
+    KDecoration3::DecorationButtonGroup *m_rightButtons = nullptr;
 
     //* Whether the paint() method is active
     bool m_painting = false;
@@ -305,12 +305,17 @@ private:
     bool m_animateOutOverriddenThinWindowOutline = false;
 };
 
+auto Decoration::client()
+{
+    return window();
+}
+
 bool Decoration::hasBorders() const
 {
     if (m_internalSettings && m_internalSettings->exceptionBorder()) {
         return m_internalSettings->borderSize() > InternalSettings::EnumBorderSize::NoSides;
     } else {
-        return settings()->borderSize() > KDecoration2::BorderSize::NoSides;
+        return settings()->borderSize() > KDecoration3::BorderSize::NoSides;
     }
 }
 
@@ -319,7 +324,7 @@ bool Decoration::hasNoBorders() const
     if (m_internalSettings && m_internalSettings->exceptionBorder()) {
         return m_internalSettings->borderSize() == InternalSettings::EnumBorderSize::None;
     } else {
-        return settings()->borderSize() == KDecoration2::BorderSize::None;
+        return settings()->borderSize() == KDecoration3::BorderSize::None;
     }
 }
 
@@ -328,7 +333,7 @@ bool Decoration::hasNoSideBorders() const
     if (m_internalSettings && m_internalSettings->exceptionBorder()) {
         return m_internalSettings->borderSize() == InternalSettings::EnumBorderSize::NoSides;
     } else {
-        return settings()->borderSize() == KDecoration2::BorderSize::NoSides;
+        return settings()->borderSize() == KDecoration3::BorderSize::NoSides;
     }
 }
 
