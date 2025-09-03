@@ -529,12 +529,6 @@ void Style::polish(QWidget *widget)
 }
 
 //______________________________________________________________
-void Style::polish(QApplication *application)
-{
-    _toolsAreaManager->registerApplication(application);
-}
-
-//______________________________________________________________
 void Style::polishScrollArea(QAbstractScrollArea *scrollArea)
 {
     // check argument
@@ -1599,6 +1593,11 @@ bool Style::eventFilter(QObject *object, QEvent *event)
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     else if (object == qApp && event->type() == QEvent::ApplicationPaletteChange) {
         loadConfiguration();
+    } else if (object == qApp && event->type() == QEvent::DynamicPropertyChange) {
+        auto ev = static_cast<QDynamicPropertyChangeEvent *>(event);
+        if (ev->propertyName() == "KDE_COLOR_SCHEME_PATH") {
+            loadConfiguration();
+        }
     }
 #endif
 
@@ -1739,6 +1738,12 @@ bool Style::eventFilterScrollArea(QWidget *widget, QEvent *event)
         // get frame framewidth
         const int frameWidth(pixelMetric(PM_DefaultFrameWidth, nullptr, widget));
 
+        // We would just send it to where we were before, stop.
+        // NOTE: From Qt 6.9 sending the event will lead to infinite recursion!
+        if (!frameWidth) {
+            return false;
+        }
+
         // find list of scrollbars
         QList<QScrollBar *> scrollBars;
         if (auto scrollArea = qobject_cast<QAbstractScrollArea *>(widget)) {
@@ -1854,7 +1859,7 @@ void Style::drawMainWindow(QPainter *painter, const QMainWindow *mw, const bool 
 #endif
     const bool toolsAreaWithHeaderColors = _toolsAreaManager->hasHeaderColors() && _helper->shouldDrawToolsArea(mw);
 
-    auto rect = _toolsAreaManager->toolsAreaRect(mw);
+    auto rect = _toolsAreaManager->toolsAreaRect(*mw);
     if (rect.height() == 0) {
         if (drawWindowBackground) {
             auto bg = mw->rect();
@@ -1868,7 +1873,7 @@ void Style::drawMainWindow(QPainter *painter, const QMainWindow *mw, const bool 
     } else {
         if (drawWindowBackground) {
             auto bg = mw->rect();
-            auto rect = _toolsAreaManager->toolsAreaRect(mw);
+            auto rect = _toolsAreaManager->toolsAreaRect(*mw);
             bg.setTop(rect.height() - 1);
 
             painter->setPen(Qt::NoPen);
@@ -5594,9 +5599,7 @@ bool Style::drawToolButtonLabelControl(const QStyleOption *option, QPainter *pai
 
     const auto toolButtonStyle = toolButtonOption->toolButtonStyle;
     const bool hasArrow = toolButtonOption->features & QStyleOptionToolButton::Arrow;
-    bool hasIcon = toolButtonStyle != Qt::ToolButtonTextOnly
-            && ((!toolButtonOption->icon.isNull() && !toolButtonOption->iconSize.isEmpty())
-                || hasArrow);
+    bool hasIcon = toolButtonStyle != Qt::ToolButtonTextOnly && ((!toolButtonOption->icon.isNull() && !toolButtonOption->iconSize.isEmpty()) || hasArrow);
     bool hasText = toolButtonStyle != Qt::ToolButtonIconOnly && !toolButtonOption->text.isEmpty();
     const bool textUnderIcon = hasIcon && hasText && toolButtonStyle == Qt::ToolButtonTextUnderIcon;
 
@@ -5622,15 +5625,10 @@ bool Style::drawToolButtonLabelControl(const QStyleOption *option, QPainter *pai
     } else if (textUnderIcon) {
         const int contentsHeight(iconSize.height() + textSize.height() + Metrics::ToolButton_ItemSpacing);
         iconRect = {
-            QPoint(contentsRect.left() + (contentsRect.width() - iconSize.width()) / 2,
-                   contentsRect.top() + (contentsRect.height() - contentsHeight) / 2),
-            iconSize
-        };
-        textRect = {
-            QPoint(contentsRect.left() + (contentsRect.width() - textSize.width()) / 2,
-                   iconRect.bottom() + Metrics::ToolButton_ItemSpacing + 1),
-            textSize
-        };
+            QPoint(contentsRect.left() + (contentsRect.width() - iconSize.width()) / 2, contentsRect.top() + (contentsRect.height() - contentsHeight) / 2),
+            iconSize};
+        textRect = {QPoint(contentsRect.left() + (contentsRect.width() - textSize.width()) / 2, iconRect.bottom() + Metrics::ToolButton_ItemSpacing + 1),
+                    textSize};
 
         // handle right to left layouts
         iconRect = visualRect(option, iconRect);
@@ -5641,18 +5639,12 @@ bool Style::drawToolButtonLabelControl(const QStyleOption *option, QPainter *pai
         const bool leftAlign(widget && widget->property(PropertyNames::toolButtonAlignment).toInt() == Qt::AlignLeft);
         if (leftAlign) {
             const int marginWidth(Metrics::Button_MarginWidth + Metrics::Frame_FrameWidth + 1);
-            iconRect = {
-                QPoint(contentsRect.left() + marginWidth,
-                       contentsRect.top() + (contentsRect.height() - iconSize.height()) / 2),
-                iconSize
-            };
+            iconRect = {QPoint(contentsRect.left() + marginWidth, contentsRect.top() + (contentsRect.height() - iconSize.height()) / 2), iconSize};
         } else {
             const int contentsWidth(iconSize.width() + textSize.width() + Metrics::ToolButton_ItemSpacing);
             iconRect = {
-                QPoint(contentsRect.left() + (contentsRect.width() - contentsWidth) / 2,
-                       contentsRect.top() + (contentsRect.height() - iconSize.height()) / 2),
-                iconSize
-            };
+                QPoint(contentsRect.left() + (contentsRect.width() - contentsWidth) / 2, contentsRect.top() + (contentsRect.height() - iconSize.height()) / 2),
+                iconSize};
         }
 
         const int padding = (contentsRect.height() - textSize.height()) / 2;
@@ -7491,7 +7483,7 @@ bool Style::drawGroupBoxComplexControl(const QStyleOptionComplex *option, QPaint
     }
 
     // Text for label
-    QFont font = qApp->font();
+    QFont font = widget ? widget->font() : qApp->font("QGroupBox");
     if (groupBoxOption->features == QStyleOptionFrame::Flat && !(groupBoxOption->subControls & SC_GroupBoxCheckBox)) {
         font.setPointSize(font.pointSize() + 1);
         font.setBold(true);
@@ -8632,12 +8624,13 @@ QIcon Style::titleBarButtonIcon(StandardPixmap standardPixmap, const QStyleOptio
         palette = QApplication::palette();
     }
 
-    //generate a different DecorationColors for buttons on a toolbar. These set the titlebar background to the toolbar background, and use the inactive button states
+    // generate a different DecorationColors for buttons on a toolbar. These set the titlebar background to the toolbar background, and use the inactive button
+    // states
     DecorationColors decorationColorsToolbar(false, true);
     palette.setCurrentColorGroup(QPalette::Active);
     const QColor toolbarBase(palette.color(QPalette::Window));
     const QColor toolbarText(KColorUtils::mix(toolbarBase, palette.color(QPalette::WindowText), 0.7));
-    //generate inactive decoration colours only
+    // generate inactive decoration colours only
     decorationColorsToolbar.generateDecorationColors(palette, _helper->decorationConfig(), QColor(), QColor(), toolbarText, toolbarBase, "", true, false);
     DecorationButtonPalette decorationButtonPaletteToolbar(buttonType);
     decorationButtonPaletteToolbar.generate(_helper->decorationConfig(),

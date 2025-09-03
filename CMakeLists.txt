@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 project(klassy)
-set(PROJECT_VERSION "6.2.breeze6.2.1")
+set(PROJECT_VERSION "6.4")
 set(PROJECT_VERSION_MAJOR 6)
 
 add_definitions( -DKLASSY_VERSION="${PROJECT_VERSION}" -DKLASSY_GIT_MASTER=0)
 
 set(KF5_MIN_VERSION "5.102.0")
-set(KF6_MIN_VERSION "6.2.0")
+set(KF6_MIN_VERSION "6.10.0")
 set(KDE_COMPILERSETTINGS_LEVEL "5.82")
 set(QT5_MIN_VERSION "5.15.2")
 set(QT_MIN_VERSION "6.6.0")
@@ -133,7 +133,7 @@ function(build_Qt6)
         set(WITH_DECORATIONS OFF)
     endif()
 
-    find_package(Qt6 ${QT_MIN_VERSION} REQUIRED CONFIG COMPONENTS Widgets Svg Xml) #Svg and Xml only needed for settings (Qt6 only)
+    find_package(Qt6 ${QT_MIN_VERSION} REQUIRED CONFIG COMPONENTS Widgets Core Svg Xml) #Svg and Xml only needed for settings (Qt6 only)
 
     find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
         CoreAddons
@@ -165,7 +165,7 @@ function(build_Qt6)
     add_subdirectory(libbreezecommon libbreezecommon6)
 
     if(WITH_DECORATIONS)
-        find_package(KDecoration2 REQUIRED)
+        find_package(KDecoration3 REQUIRED)
         add_subdirectory(kdecoration)
         add_subdirectory(icons)
         add_subdirectory(layout-templates)
@@ -207,4 +207,4 @@ file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES *.cpp *.h)
 kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
 kde_configure_git_pre_commit_hook(CHECKS CLANG_FORMAT)
 
-feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
+feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

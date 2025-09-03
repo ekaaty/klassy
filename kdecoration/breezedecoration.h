@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: 2014 Martin Gräßlin <mgraesslin@kde.org>
  * SPDX-FileCopyrightText: 2014 Hugo Pereira Da Costa <hugo.pereira@free.fr>
- * SPDX-FileCopyrightText: 2021-2024 Paul A McAuley <kde@paulmcauley.com>
+ * SPDX-FileCopyrightText: 2021-2025 Paul A McAuley <kde@paulmcauley.com>
  *
  * SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
  */
@@ -14,9 +14,9 @@
 #include "colortools.h"
 #include "decorationcolors.h"
 
-#include <KDecoration2/DecoratedClient>
-#include <KDecoration2/Decoration>
-#include <KDecoration2/DecorationSettings>
+#include <KDecoration3/DecoratedWindow>
+#include <KDecoration3/Decoration>
+#include <KDecoration3/DecorationSettings>
 #include <KSharedConfig>
 
 #include <QPainterPath>
@@ -26,7 +26,7 @@
 
 #include <memory>
 
-namespace KDecoration2
+namespace KDecoration3
 {
 class DecorationButton;
 class DecorationButtonGroup;
@@ -40,19 +40,17 @@ enum struct ButtonBackgroundType {
     FullHeight,
 };
 
-class Decoration : public KDecoration2::Decoration
+class Decoration : public KDecoration3::Decoration
 {
     Q_OBJECT
 
 public:
     //* constructor
     explicit Decoration(QObject *parent = nullptr, const QVariantList &args = QVariantList());
-
-    //* destructor
-    virtual ~Decoration();
+    ~Decoration() override;
 
     //* paint
-    void paint(QPainter *painter, const QRect &repaintRegion) override;
+    void paint(QPainter *painter, const QRectF &repaintRegion) override;
 
     //* internal settings
     InternalSettingsPtr internalSettings() const
@@ -66,7 +64,7 @@ public:
     }
 
     //* caption height
-    int captionHeight() const;
+    qreal captionHeight(const bool nextState = false) const;
 
     //*@name active state change animation
     //@{
@@ -142,12 +140,12 @@ public:
         return m_scaledCornerRadius;
     }
 
-    KDecoration2::DecorationButtonGroup *leftButtons()
+    KDecoration3::DecorationButtonGroup *leftButtons()
     {
         return m_leftButtons;
     }
 
-    KDecoration2::DecorationButtonGroup *rightButtons()
+    KDecoration3::DecorationButtonGroup *rightButtons()
     {
         return m_rightButtons;
     }
@@ -199,15 +197,16 @@ private Q_SLOTS:
 
 private:
     //* return the rect in which caption will be drawn
-    QPair<QRect, Qt::Alignment> captionRect() const;
+    QPair<QRectF, Qt::Alignment> captionRect(const bool nextState = false) const;
 
     void reconfigureMain(const bool noUpdateShadow = false);
     void updateDecorationColors(const QPalette &clientPalette, QByteArray uuid = "");
     void createButtons();
-    void calculateWindowAndTitleBarShapes(const bool windowShapeOnly = false);
-    void paintTitleBar(QPainter *painter, const QRect &repaintRegion);
+    void calculateWindowShape();
+    void calculateTitleBarShape();
+    void paintTitleBar(QPainter *painter, const QRectF &repaintRegion);
     void updateShadow(const bool forceUpdateCache = false, bool noCache = false, const bool isThinWindowOutlineOverride = false);
-    std::shared_ptr<KDecoration2::DecorationShadow> createShadowObject(QColor shadowColor, const bool isThinWindowOutlineOverride = false);
+    std::shared_ptr<KDecoration3::DecorationShadow> createShadowObject(QColor shadowColor, const bool isThinWindowOutlineOverride = false);
     void setScaledCornerRadius();
 
     //*@name border size
@@ -237,8 +236,8 @@ private:
 
     static KSharedConfig::Ptr s_kdeGlobalConfig;
     InternalSettingsPtr m_internalSettings;
-    KDecoration2::DecorationButtonGroup *m_leftButtons = nullptr;
-    KDecoration2::DecorationButtonGroup *m_rightButtons = nullptr;
+    KDecoration3::DecorationButtonGroup *m_leftButtons = nullptr;
+    KDecoration3::DecorationButtonGroup *m_rightButtons = nullptr;
 
     //* Whether the paint() method is active
     bool m_painting = false;
@@ -266,18 +265,18 @@ private:
     bool m_tabletMode = false;
 
     //* titleBar top margin, scaled according to smallspacing
-    int m_scaledTitleBarTopMargin = 1;
+    qreal m_scaledTitleBarTopMargin = 1;
     //* titleBar bottom margin, scaled according to smallspacing
-    int m_scaledTitleBarBottomMargin = 1;
+    qreal m_scaledTitleBarBottomMargin = 1;
     //* integrated rounded rectangle bottom padding, scaled according to smallspacing
     qreal m_scaledIntegratedRoundedRectangleBottomPadding = 0;
 
     //* titleBar side margins, scaled according to smallspacing
-    int m_scaledTitleBarLeftMargin = 1;
-    int m_scaledTitleBarRightMargin = 1;
+    qreal m_scaledTitleBarLeftMargin = 1;
+    qreal m_scaledTitleBarRightMargin = 1;
 
     //* Rectangular area of titlebar without clipped corners
-    QRect m_titleRect;
+    QRectF m_titleRect;
 
     //* Exact titlebar path, with clipped rounded corners
     QPainterPath m_titleBarPath = QPainterPath();
@@ -287,7 +286,7 @@ private:
     qreal m_systemScaleFactorX11 = 1.0;
 
     ButtonBackgroundType m_buttonBackgroundType = ButtonBackgroundType::Small;
-    int m_smallButtonPaddedSize = 20;
+    qreal m_smallButtonPaddedSize = 20;
     int m_iconSize = 18;
     int m_smallButtonBackgroundSize = 18;
 
@@ -310,7 +309,7 @@ bool Decoration::hasBorders() const
     if (m_internalSettings && m_internalSettings->exceptionBorder()) {
         return m_internalSettings->borderSize() > InternalSettings::EnumBorderSize::NoSides;
     } else {
-        return settings()->borderSize() > KDecoration2::BorderSize::NoSides;
+        return settings()->borderSize() > KDecoration3::BorderSize::NoSides;
     }
 }
 
@@ -319,7 +318,7 @@ bool Decoration::hasNoBorders() const
     if (m_internalSettings && m_internalSettings->exceptionBorder()) {
         return m_internalSettings->borderSize() == InternalSettings::EnumBorderSize::None;
     } else {
-        return settings()->borderSize() == KDecoration2::BorderSize::None;
+        return settings()->borderSize() == KDecoration3::BorderSize::None;
     }
 }
 
@@ -328,58 +327,58 @@ bool Decoration::hasNoSideBorders() const
     if (m_internalSettings && m_internalSettings->exceptionBorder()) {
         return m_internalSettings->borderSize() == InternalSettings::EnumBorderSize::NoSides;
     } else {
-        return settings()->borderSize() == KDecoration2::BorderSize::NoSides;
+        return settings()->borderSize() == KDecoration3::BorderSize::NoSides;
     }
 }
 
 bool Decoration::isMaximized() const
 {
-    auto c = client();
+    auto c = window();
     return c->isMaximized() && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isMaximizedHorizontally() const
 {
-    auto c = client();
+    auto c = window();
     return c->isMaximizedHorizontally() && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isMaximizedVertically() const
 {
-    auto c = client();
+    auto c = window();
     return c->isMaximizedVertically() && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isLeftEdge() const
 {
-    auto c = client();
+    auto c = window();
     return (c->isMaximizedHorizontally() || c->adjacentScreenEdges().testFlag(Qt::LeftEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isRightEdge() const
 {
-    auto c = client();
+    auto c = window();
 
     return (c->isMaximizedHorizontally() || c->adjacentScreenEdges().testFlag(Qt::RightEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isTopEdge() const
 {
-    auto c = client();
+    auto c = window();
 
     return (c->isMaximizedVertically() || c->adjacentScreenEdges().testFlag(Qt::TopEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::isBottomEdge() const
 {
-    auto c = client();
+    auto c = window();
 
     return (c->isMaximizedVertically() || c->adjacentScreenEdges().testFlag(Qt::BottomEdge)) && !m_internalSettings->drawBorderOnMaximizedWindows();
 }
 
 bool Decoration::hideTitleBar() const
 {
-    auto c = client();
+    auto c = window();
     return m_internalSettings->hideTitleBar() && !c->isShaded();
 }
 

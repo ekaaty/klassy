@@ -35,18 +35,17 @@ void PresetsModel::writePreset(KCoreConfigSkeleton *skeleton, KConfig *presetsCo
     KSharedConfig::Ptr kwinConfig = KSharedConfig::openConfig(QStringLiteral("kwinrc"));
     if (!kwinConfig)
         return;
-    if (kwinConfig->hasGroup(QStringLiteral("org.kde.kdecoration2"))) {
-        KConfigGroup kdecoration2Group = kwinConfig->group(QStringLiteral("org.kde.kdecoration2"));
-        QString borderSize;
-        if (!kdecoration2Group.hasKey(QStringLiteral("BorderSize"))) {
-            borderSize = QStringLiteral("Normal"); // Normal is the KWin default, so will nor write a BorderSize key in this case
-        } else {
-            borderSize = kdecoration2Group.readEntry(QStringLiteral("BorderSize"));
-        }
-        if (!groupName.isEmpty()) {
-            KConfigGroup configGroup(presetsConfig, groupName);
-            configGroup.writeEntry(QStringLiteral("KwinBorderSize"), borderSize);
-        }
+    KConfigGroup kdecoration3Group = kwinConfig->group(QStringLiteral("org.kde.kdecoration2")); // As of Plasma 6.3.3 this is still kdecoration2
+    QString borderSize, buttonsOnLeft, buttonsOnRight;
+    borderSize = kdecoration3Group.readEntry(QStringLiteral("BorderSize"), QStringLiteral("Normal"));
+    buttonsOnLeft = kdecoration3Group.readEntry(QStringLiteral("ButtonsOnLeft"), QStringLiteral("MS"));
+    buttonsOnRight = kdecoration3Group.readEntry(QStringLiteral("ButtonsOnRight"), QStringLiteral("HIAX"));
+
+    if (!groupName.isEmpty()) {
+        KConfigGroup configGroup(presetsConfig, groupName);
+        configGroup.writeEntry(QStringLiteral("KwinBorderSize"), borderSize);
+        configGroup.writeEntry(QStringLiteral("KwinButtonsOnLeft"), buttonsOnLeft);
+        configGroup.writeEntry(QStringLiteral("KwinButtonsOnRight"), buttonsOnRight);
     }
 }
 
@@ -100,6 +99,10 @@ bool PresetsModel::loadPreset(KCoreConfigSkeleton *skeleton, KConfig *presetsCon
         KConfigGroup configGroup = presetsConfig->group(groupName);
         if (configGroup.hasKey(QStringLiteral("KwinBorderSize"))) {
             writeBorderSizeToKwinConfig(configGroup.readEntry(QStringLiteral("KwinBorderSize")));
+        }
+        if (configGroup.hasKey(QStringLiteral("KwinButtonsOnLeft")) && configGroup.hasKey(QStringLiteral("KwinButtonsOnRight"))) {
+            writeButtonPositionToKwinConfig(configGroup.readEntry(QStringLiteral("KwinButtonsOnLeft")),
+                                            configGroup.readEntry(QStringLiteral("KwinButtonsOnRight")));
         }
     }
 
@@ -169,12 +172,25 @@ void PresetsModel::writeBorderSizeToKwinConfig(const QString &borderSize)
 {
     KSharedConfig::Ptr kwinConfig = KSharedConfig::openConfig(QStringLiteral("kwinrc"));
     if (kwinConfig) {
-        KConfigGroup kdecoration2Group = kwinConfig->group(QStringLiteral("org.kde.kdecoration2"));
+        KConfigGroup kdecoration3Group = kwinConfig->group(QStringLiteral("org.kde.kdecoration2"));
 
         // this is when "Theme's Default" is selected for the border size - if this is true then kwin will ignore the "BorderSize" key
-        kdecoration2Group.writeEntry(QStringLiteral("BorderSizeAuto"), QStringLiteral("false"));
+        kdecoration3Group.writeEntry(QStringLiteral("BorderSizeAuto"), QStringLiteral("false"));
 
-        kdecoration2Group.writeEntry(QStringLiteral("BorderSize"), borderSize);
+        kdecoration3Group.writeEntry(QStringLiteral("BorderSize"), borderSize);
+        kwinConfig->sync();
+    }
+}
+
+void PresetsModel::writeButtonPositionToKwinConfig(const QString &buttonsOnLeft, const QString &buttonsOnRight)
+{
+    KSharedConfig::Ptr kwinConfig = KSharedConfig::openConfig(QStringLiteral("kwinrc"));
+    if (kwinConfig) {
+        KConfigGroup kdecoration3Group = kwinConfig->group(QStringLiteral("org.kde.kdecoration2"));
+
+        kdecoration3Group.writeEntry(QStringLiteral("ButtonsOnLeft"), buttonsOnLeft);
+
+        kdecoration3Group.writeEntry(QStringLiteral("ButtonsOnRight"), buttonsOnRight);
         kwinConfig->sync();
     }
 }
@@ -269,6 +285,10 @@ void PresetsModel::exportPreset(KConfig *presetsConfig, const QString &presetNam
     }
     if (inputPresetGroup.hasKey("KwinBorderSize"))
         outputPresetGroup.writeEntry("KwinBorderSize", inputPresetGroup.readEntry("KwinBorderSize"));
+    if (inputPresetGroup.hasKey("KwinButtonsOnLeft"))
+        outputPresetGroup.writeEntry("KwinButtonsOnLeft", inputPresetGroup.readEntry("KwinButtonsOnLeft"));
+    if (inputPresetGroup.hasKey("KwinButtonsOnRight"))
+        outputPresetGroup.writeEntry("KwinButtonsOnRight", inputPresetGroup.readEntry("KwinButtonsOnRight"));
 
     outputPresetConfig->sync();
 }
@@ -340,13 +360,13 @@ bool PresetsModel::isKeyValid(const QString &key)
         }
     }
 
-    if (key == "KwinBorderSize")
+    if (key == "KwinBorderSize" || key == "KwinButtonsOnLeft" || key == "KwinButtonsOnRight")
         return true; // additional valid key containing KWin border size setting from kwinrc
 
     return false;
 }
 
-// copies bundled presets in /usr/lib64/qt6/plugins/org.kde.kdecoration2.kcm/klassydecoration/presets into ~/.config/klassy/klassyrc once per release
+// copies bundled presets in /usr/lib64/qt6/plugins/org.kde.kdecoration3.kcm/klassydecoration/presets into ~/.config/klassy/klassyrc once per release
 void PresetsModel::importBundledPresets(KConfig *presetsConfig)
 {
     // don't copy if BundledWindecoPresetsImportedVersion has been set for the current release version
@@ -366,7 +386,7 @@ void PresetsModel::importBundledPresets(KConfig *presetsConfig)
     PresetsModel::deleteBundledPresets(presetsConfig);
 
     for (QString libraryPath : QCoreApplication::libraryPaths()) {
-        libraryPath += "/org.kde.kdecoration2.kcm/klassydecoration/presets";
+        libraryPath += "/org.kde.kdecoration3.kcm/klassydecoration/presets";
         QDir presetsDir(libraryPath);
         if (presetsDir.exists()) {
             QStringList filters;

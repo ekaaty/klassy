@@ -25,7 +25,11 @@
 
 using namespace Breeze;
 struct CommandLineProcessResult {
-    enum class Status { CommandsProcessedOk, Error, NoCommand };
+    enum class Status {
+        CommandsProcessedOk,
+        Error,
+        NoCommand
+    };
     Status statusCode = Status::NoCommand;
 };
 CommandLineProcessResult processComandLine(QApplication &app, QCommandLineParser &parser);
@@ -51,7 +55,7 @@ int main(int argc, char *argv[])
     dialog.setWindowTitle(i18n("Klassy Settings"));
     dialog.setMinimumWidth(800);
     dialog.addModule(KPluginMetaData(QStringLiteral("kstyle_config/klassystyleconfig")));
-    dialog.addModule(KPluginMetaData(QStringLiteral("org.kde.kdecoration2.kcm/kcm_klassydecoration.so")));
+    dialog.addModule(KPluginMetaData(QStringLiteral("org.kde.kdecoration3.kcm/kcm_klassydecoration.so")));
     dialog.show();
 
     const auto children = dialog.findChildren<QAbstractScrollArea *>();

@@ -5,11 +5,12 @@
  */
 
 #include "renderdecorationbuttonicon.h"
+#include "stylefluent.h"
+#include "stylekisweet.h"
 #include "stylekite.h"
-#include "styleklassy.h"
+#include "styleklasse.h"
+#include "stylemetro.h"
 #include "styleoxygen.h"
-#include "styleredmond10.h"
-#include "styleredmond11.h"
 #include "styletraditional.h"
 #include "systemicontheme.h"
 #include <algorithm>
@@ -27,12 +28,15 @@ std::pair<std::unique_ptr<RenderDecorationButtonIcon>, int> RenderDecorationButt
                                                                                                 const bool forceEvenSquares)
 {
     switch (internalSettings->buttonIconStyle()) {
-    case InternalSettings::EnumButtonIconStyle::StyleKlassy:
+    case InternalSettings::EnumButtonIconStyle::StyleKisweet:
     default:
         return {
-            std::make_unique<RenderStyleKlassy18By18>(painter, fromKstyle, boldButtonIcons, devicePixelRatio, deviceOffsetFromZeroReference, forceEvenSquares),
+            std::make_unique<RenderStyleKisweet18By18>(painter, fromKstyle, boldButtonIcons, devicePixelRatio, deviceOffsetFromZeroReference, forceEvenSquares),
             18};
-
+    case InternalSettings::EnumButtonIconStyle::StyleKlasse:
+        return {
+            std::make_unique<RenderStyleKlasse18By18>(painter, fromKstyle, boldButtonIcons, devicePixelRatio, deviceOffsetFromZeroReference, forceEvenSquares),
+            18};
     case InternalSettings::EnumButtonIconStyle::StyleKite:
         return {
             std::make_unique<RenderStyleKite18By18>(painter, fromKstyle, boldButtonIcons, devicePixelRatio, deviceOffsetFromZeroReference, forceEvenSquares),
@@ -49,22 +53,14 @@ std::pair<std::unique_ptr<RenderDecorationButtonIcon>, int> RenderDecorationButt
                                                                deviceOffsetFromZeroReference,
                                                                forceEvenSquares),
                 18};
-    case InternalSettings::EnumButtonIconStyle::StyleRedmond10:
-        return {std::make_unique<RenderStyleRedmond1018By18>(painter,
-                                                             fromKstyle,
-                                                             boldButtonIcons,
-                                                             devicePixelRatio,
-                                                             deviceOffsetFromZeroReference,
-                                                             forceEvenSquares),
-                18};
-    case InternalSettings::EnumButtonIconStyle::StyleRedmond11:
-        return {std::make_unique<RenderStyleRedmond1118By18>(painter,
-                                                             fromKstyle,
-                                                             boldButtonIcons,
-                                                             devicePixelRatio,
-                                                             deviceOffsetFromZeroReference,
-                                                             forceEvenSquares),
-                18};
+    case InternalSettings::EnumButtonIconStyle::StyleMetro:
+        return {
+            std::make_unique<RenderStyleMetro18By18>(painter, fromKstyle, boldButtonIcons, devicePixelRatio, deviceOffsetFromZeroReference, forceEvenSquares),
+            18};
+    case InternalSettings::EnumButtonIconStyle::StyleFluent:
+        return {
+            std::make_unique<RenderStyleFluent18By18>(painter, fromKstyle, boldButtonIcons, devicePixelRatio, deviceOffsetFromZeroReference, forceEvenSquares),
+            18};
     }
 }
 

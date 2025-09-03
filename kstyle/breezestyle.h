@@ -85,9 +85,6 @@ public:
     //* widget unpolishing
     void unpolish(QWidget *) override;
 
-    //* application polishing
-    void polish(QApplication *) override;
-
     //* polish scrollarea
     void polishScrollArea(QAbstractScrollArea *);
 
@@ -209,7 +206,11 @@ private:
     QRect spinBoxSubControlRect(const QStyleOptionComplex *, SubControl, const QWidget *) const;
     QRect scrollBarInternalSubControlRect(const QStyleOptionComplex *, SubControl) const;
 
-    enum class OverrideAutoHideArrows { NoOverride, ShowArrow, HideArrow };
+    enum class OverrideAutoHideArrows {
+        NoOverride,
+        ShowArrow,
+        HideArrow
+    };
     QRect scrollBarSubControlRect(const QStyleOptionComplex *,
                                   SubControl,
                                   const QWidget *,

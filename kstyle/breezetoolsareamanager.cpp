@@ -11,8 +11,6 @@
 
 #include <KColorUtils>
 
-const char *colorProperty = "KDE_COLOR_SCHEME_PATH";
-
 namespace Breeze
 {
 ToolsAreaManager::ToolsAreaManager(std::shared_ptr<Helper> helper)
@@ -25,15 +23,38 @@ ToolsAreaManager::~ToolsAreaManager()
 {
 }
 
-template<class T1, class T2>
-void appendIfNotAlreadyExists(T1 *list, T2 item)
+void ToolsAreaManager::appendIfNotAlreadyExists(const QMainWindow *window, const QPointer<QToolBar> &toolBar)
 {
-    for (auto listItem : *list) {
-        if (listItem == item) {
-            return;
+    const auto windowIt = std::find_if(_windows.begin(), _windows.end(), [window](const WindowToolBars &windowToolBars) {
+        return window == windowToolBars.window;
+    });
+    if (windowIt != _windows.end()) {
+        if (!windowIt->toolBars.contains(toolBar)) {
+            windowIt->toolBars.append(toolBar);
         }
+    } else {
+        _windows.emplace_back(WindowToolBars{window, {toolBar}});
+        connect(window, &QObject::destroyed, this, [this, window] {
+            removeWindow(window);
+        });
     }
-    list->append(item);
+}
+
+void ToolsAreaManager::removeWindowToolBar(const QMainWindow *window, const QPointer<QToolBar> &toolBar)
+{
+    const auto windowIt = std::find_if(_windows.begin(), _windows.end(), [window](const WindowToolBars &windowToolBars) {
+        return window == windowToolBars.window;
+    });
+    if (windowIt != _windows.end()) {
+        windowIt->toolBars.removeAll(toolBar);
+    }
+}
+
+void ToolsAreaManager::removeWindow(const QMainWindow *window)
+{
+    std::erase_if(_windows, [window](const WindowToolBars &windowToolBars) {
+        return window == windowToolBars.window;
+    });
 }
 
 void ToolsAreaManager::doTranslucency(QMainWindow *win, bool on)
@@ -55,35 +76,31 @@ void ToolsAreaManager::doTranslucency(QMainWindow *win, bool on)
     }
 }
 
-void ToolsAreaManager::registerApplication(QApplication *application)
-{
-    configUpdated();
-    _listener = new AppListener(this);
-    _listener->manager = this;
-    application->installEventFilter(_listener);
-}
+QRect ToolsAreaManager::toolsAreaRect(const QMainWindow &window) const
 
-QRect ToolsAreaManager::toolsAreaRect(const QMainWindow *window)
 {
-    Q_ASSERT(window);
-
-    int itemHeight = window->menuWidget() ? window->menuWidget()->height() : 0;
-    for (auto item : _windows[window]) {
-        if (!item.isNull() && item->isVisible() && window->toolBarArea(item) == Qt::TopToolBarArea) {
-            itemHeight = qMax(item->mapTo(window, item->rect().bottomLeft()).y(), itemHeight);
+    int itemHeight = window.menuWidget() ? window.menuWidget()->height() : 0;
+    const auto windowIt = std::find_if(_windows.begin(), _windows.end(), [&window](const WindowToolBars &windowToolBars) {
+        return &window == windowToolBars.window;
+    });
+    if (windowIt != _windows.end()) {
+        for (auto item : windowIt->toolBars) {
+            if (!item.isNull() && item->isVisible() && window.toolBarArea(item) == Qt::TopToolBarArea) {
+                itemHeight = qMax(item->mapTo(&window, item->rect().bottomLeft()).y(), itemHeight);
+            }
         }
     }
     if (itemHeight > 0) {
         itemHeight += 1;
     }
 
-    return QRect(0, 0, window->width(), itemHeight);
+    return QRect(0, 0, window.width(), itemHeight);
 }
 
-bool ToolsAreaManager::tryRegisterToolBar(QPointer<QMainWindow> window, QPointer<QWidget> widget)
+bool ToolsAreaManager::tryRegisterToolBar(QPointer<const QMainWindow> window, QPointer<QWidget> widget)
 {
     Q_ASSERT(!widget.isNull());
-    doTranslucency(window, _translucent);
+    doTranslucency(const_cast<QMainWindow *>(window.data()), _translucent);
 
     QPointer<QToolBar> toolbar;
     if (!(toolbar = qobject_cast<QToolBar *>(widget))) {
@@ -92,18 +109,18 @@ bool ToolsAreaManager::tryRegisterToolBar(QPointer<QMainWindow> window, QPointer
 
     if (window->toolBarArea(toolbar) == Qt::TopToolBarArea) {
         widget->setPalette(palette());
-        appendIfNotAlreadyExists(&_windows[window], toolbar);
+        appendIfNotAlreadyExists(window, toolbar);
         return true;
     }
 
     return false;
 }
 
-void ToolsAreaManager::tryUnregisterToolBar(QPointer<QMainWindow> window, QPointer<QWidget> widget)
+void ToolsAreaManager::tryUnregisterToolBar(QPointer<const QMainWindow> window, QPointer<QWidget> widget)
 {
     Q_ASSERT(!widget.isNull());
 
-    doTranslucency(window, false);
+    doTranslucency(const_cast<QMainWindow *>(window.data()), false);
 
     QPointer<QToolBar> toolbar;
     if (!(toolbar = qobject_cast<QToolBar *>(widget))) {
@@ -112,33 +129,22 @@ void ToolsAreaManager::tryUnregisterToolBar(QPointer<QMainWindow> window, QPoint
 
     if (window->toolBarArea(toolbar) != Qt::TopToolBarArea) {
         widget->setPalette(window->palette());
-        _windows[window].removeAll(toolbar);
+        removeWindowToolBar(window, toolbar);
     }
 }
 
 void ToolsAreaManager::configUpdated()
 {
-    if (qApp && qApp->property(colorProperty).isValid()) {
-        auto path = qApp->property(colorProperty).toString();
-        if (path.isEmpty() || path == QStringLiteral("kdeglobals")) {
-            _config = KSharedConfig::openConfig();
-        } else {
-            _config = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
-        }
-    } else {
-        _config = KSharedConfig::openConfig();
-    }
+    _palette = KColorScheme::createApplicationPalette(_helper->colorSchemeConfig());
 
-    _colorSchemeHasHeaderColor = KColorScheme::isColorSetSupported(_config, KColorScheme::Header);
+    _colorSchemeHasHeaderColor = KColorScheme::isColorSetSupported(_helper->colorSchemeConfig(), KColorScheme::Header);
 
     bool translucent = false;
 
-    _palette = KColorScheme::createApplicationPalette(_config);
-
     if (_colorSchemeHasHeaderColor) {
-        KColorScheme active = KColorScheme(QPalette::Active, KColorScheme::Header, _config);
-        KColorScheme inactive = KColorScheme(QPalette::Inactive, KColorScheme::Header, _config);
-        KColorScheme disabled = KColorScheme(QPalette::Disabled, KColorScheme::Header, _config);
+        KColorScheme active = KColorScheme(QPalette::Active, KColorScheme::Header, _helper->colorSchemeConfig());
+        KColorScheme inactive = KColorScheme(QPalette::Inactive, KColorScheme::Header, _helper->colorSchemeConfig());
+        KColorScheme disabled = KColorScheme(QPalette::Disabled, KColorScheme::Header, _helper->colorSchemeConfig());
 
         _palette.setBrush(QPalette::Active, QPalette::Window, active.background());
         _palette.setBrush(QPalette::Active, QPalette::WindowText, active.foreground());
@@ -169,49 +175,30 @@ void ToolsAreaManager::configUpdated()
     }
     _translucent = translucent;
 
-    for (auto window : _windows) {
-        for (auto toolbar : window) {
+    for (const WindowToolBars &windowToolBars : _windows) {
+        for (const auto &toolbar : windowToolBars.toolBars) {
             if (!toolbar.isNull()) {
                 toolbar->setPalette(_palette);
             }
+        }
+        if (QMenuBar *menuBar = windowToolBars.window->menuBar()) {
+            menuBar->setPalette(_palette);
         }
     }
 }
 
 void ToolsAreaManager::becomeOpaque()
 {
-    for (auto window : _windows.keys()) {
-        doTranslucency(const_cast<QMainWindow *>(window), false);
+    for (auto windowToolBar : _windows) {
+        doTranslucency(const_cast<QMainWindow *>(windowToolBar.window), false);
     }
 }
 
 void ToolsAreaManager::becomeTransparent()
 {
-    for (auto window : _windows.keys()) {
-        doTranslucency(const_cast<QMainWindow *>(window), true);
+    for (auto windowToolBar : _windows) {
+        doTranslucency(const_cast<QMainWindow *>(windowToolBar.window), true);
     }
-}
-
-bool AppListener::eventFilter(QObject *watched, QEvent *event)
-{
-    Q_ASSERT(watched);
-    Q_ASSERT(event);
-
-    if (watched != qApp) {
-        return false;
-    }
-
-    if (event->type() == QEvent::DynamicPropertyChange) {
-        if (watched != qApp) {
-            return false;
-        }
-        auto ev = static_cast<QDynamicPropertyChangeEvent *>(event);
-        if (ev->propertyName() == colorProperty) {
-            manager->configUpdated();
-        }
-    }
-
-    return false;
 }
 
 bool ToolsAreaManager::eventFilter(QObject *watched, QEvent *event)
@@ -220,7 +207,7 @@ bool ToolsAreaManager::eventFilter(QObject *watched, QEvent *event)
     Q_ASSERT(event);
 
     QPointer<QObject> parent = watched;
-    QPointer<QMainWindow> mainWindow = nullptr;
+    QPointer<const QMainWindow> mainWindow = nullptr;
     while (parent != nullptr) {
         if (qobject_cast<QMainWindow *>(parent)) {
             mainWindow = qobject_cast<QMainWindow *>(parent);
@@ -229,10 +216,19 @@ bool ToolsAreaManager::eventFilter(QObject *watched, QEvent *event)
         parent = parent->parent();
     }
 
-    if (QPointer<QMainWindow> mw = qobject_cast<QMainWindow *>(watched)) {
+    if (const QMainWindow *mw = qobject_cast<QMainWindow *>(watched)) {
         QChildEvent *ev = nullptr;
         if (event->type() == QEvent::ChildAdded || event->type() == QEvent::ChildRemoved) {
             ev = static_cast<QChildEvent *>(event);
+
+            if (event->type() == QEvent::ChildAdded) {
+                QChildEvent *childEvent = static_cast<QChildEvent *>(event);
+                if (QMenuBar *menuBar = qobject_cast<QMenuBar *>(childEvent->child())) {
+                    menuBar->setPalette(_palette);
+                }
+            }
+        } else {
+            return false;
         }
 
         QPointer<QToolBar> tb = qobject_cast<QToolBar *>(ev->child());
@@ -242,10 +238,10 @@ bool ToolsAreaManager::eventFilter(QObject *watched, QEvent *event)
 
         if (ev->added()) {
             if (mw->toolBarArea(tb) == Qt::TopToolBarArea) {
-                appendIfNotAlreadyExists(&_windows[mw], tb);
+                appendIfNotAlreadyExists(mw, tb);
             }
         } else if (ev->removed()) {
-            _windows[mw].removeAll(tb);
+            removeWindowToolBar(mw, tb);
         }
     } else if (qobject_cast<QToolBar *>(watched)) {
         if (!mainWindow.isNull()) {
@@ -261,8 +257,23 @@ void ToolsAreaManager::registerWidget(QWidget *widget)
     Q_ASSERT(widget);
     auto ptr = QPointer<QWidget>(widget);
 
+    QPointer<const QMainWindow> mainWindow = qobject_cast<QMainWindow *>(ptr);
+
+    if (mainWindow && mainWindow.data() == mainWindow->window()) {
+        const auto toolBars = mainWindow->findChildren<QToolBar *>(QString(), Qt::FindDirectChildrenOnly);
+        for (auto *toolBar : toolBars) {
+            tryRegisterToolBar(mainWindow, toolBar);
+        }
+
+        if (QMenuBar *menuBar = mainWindow->menuBar()) {
+            menuBar->setPalette(_palette);
+        }
+
+        return;
+    }
+
     auto parent = ptr;
-    QPointer<QMainWindow> mainWindow = nullptr;
+
     while (parent != nullptr) {
         if (qobject_cast<QMdiArea *>(parent) || qobject_cast<QDockWidget *>(parent)) {
             break;
@@ -275,7 +286,7 @@ void ToolsAreaManager::registerWidget(QWidget *widget)
     if (mainWindow == nullptr) {
         return;
     }
-    if (mainWindow != mainWindow->window()) {
+    if (mainWindow.data() != mainWindow->window()) {
         return;
     }
     tryRegisterToolBar(mainWindow, widget);
@@ -286,12 +297,12 @@ void ToolsAreaManager::unregisterWidget(QWidget *widget)
     Q_ASSERT(widget);
     auto ptr = QPointer<QWidget>(widget);
 
-    if (QPointer<QMainWindow> window = qobject_cast<QMainWindow *>(ptr)) {
-        _windows.remove(window);
+    if (QPointer<const QMainWindow> window = qobject_cast<QMainWindow *>(ptr)) {
+        removeWindow(window);
         return;
     } else if (QPointer<QToolBar> toolbar = qobject_cast<QToolBar *>(ptr)) {
         auto parent = ptr;
-        QPointer<QMainWindow> mainWindow = nullptr;
+        QPointer<const QMainWindow> mainWindow = nullptr;
         while (parent != nullptr) {
             if (qobject_cast<QMainWindow *>(parent)) {
                 mainWindow = qobject_cast<QMainWindow *>(parent);
@@ -302,7 +313,7 @@ void ToolsAreaManager::unregisterWidget(QWidget *widget)
         if (mainWindow == nullptr) {
             return;
         }
-        _windows[mainWindow].removeAll(toolbar);
+        removeWindowToolBar(mainWindow, toolbar);
     }
 }
 

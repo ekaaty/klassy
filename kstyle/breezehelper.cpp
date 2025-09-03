@@ -73,6 +73,11 @@ QSharedPointer<InternalSettings> Helper::decorationConfig() const
     return _decorationConfig;
 }
 
+KSharedConfigPtr Helper::colorSchemeConfig() const
+{
+    return _colorSchemeConfig;
+}
+
 //____________________________________________________________________
 void Helper::loadConfig()
 {
@@ -90,6 +95,12 @@ void Helper::loadConfig()
     _decorationConfig = DecorationSettingsProvider::self()->internalSettings();
 
     const QString colorSchemePath = qApp->property("KDE_COLOR_SCHEME_PATH").toString();
+    if (colorSchemePath.isEmpty() || colorSchemePath == QStringLiteral("kdeglobals")) {
+        _colorSchemeConfig = KSharedConfig::openConfig();
+    } else {
+        _colorSchemeConfig = KSharedConfig::openConfig(colorSchemePath, KConfig::SimpleConfig);
+    }
+
     // bool isApplicationSpecificColorScheme = (!colorSchemePath.isEmpty() && colorSchemePath != QStringLiteral("kdeglobals"));
 
     // bool noCache = _decorationConfig->property("noCacheException").toBool() || isApplicationSpecificColorScheme;
@@ -118,7 +129,7 @@ void Helper::loadConfig()
                         != _decorationColors->settingsUpdateUuid()))) { // case from generateDecorationColorsOnDecorationSettingsPaletteUpdate()
             generateColors = true;
         }
-        // TODO: palette may not be a reliable indicator of the entire colour scheme - get an update to KDecoration2::DecoratedClient to read QString
+        // TODO: palette may not be a reliable indicator of the entire colour scheme - get an update to KDecoration3::DecoratedWindow to read QString
         // m_colorScheme instead and update to compare m_colorScheme and system titlebar colours
         if (!generateColors && palette != *_decorationColors->basePalette()) {
             generateColors = true;
@@ -1879,7 +1890,7 @@ bool Helper::shouldDrawToolsArea(const QWidget *widget) const
     static bool isAuto = false;
     static QString borderSize;
     if (!_cachedAutoValid) {
-        KConfigGroup kdecorationGroup(_kwinConfig->group(QStringLiteral("org.kde.kdecoration2")));
+        KConfigGroup kdecorationGroup(_kwinConfig->group(QStringLiteral("org.kde.kdecoration3")));
         isAuto = kdecorationGroup.readEntry("BorderSizeAuto", true);
         borderSize = kdecorationGroup.readEntry("BorderSize", "Normal");
         _cachedAutoValid = true;

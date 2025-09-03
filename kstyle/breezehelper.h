@@ -10,6 +10,7 @@
 #include "breezeanimationdata.h"
 #include "breezemetrics.h"
 #include "breezesettings.h"
+#include "breezestyle.h"
 #include "colortools.h"
 #include "config-breeze.h"
 #include "decorationcolors.h"
@@ -54,6 +55,8 @@ public:
 
     //* pointer to kdecoration config
     QSharedPointer<InternalSettings> decorationConfig() const;
+
+    KSharedConfigPtr colorSchemeConfig() const;
 
     //*@name color utilities
     //@{
@@ -110,13 +113,15 @@ public:
     //* titlebar color
     const QColor &titleBarColor(bool active, bool systemColor = false) const
     {
-        return active ? (systemColor ? _systemActiveTitleBarColor : _decorationColors->active()->titleBarBase) : (systemColor ? _systemInactiveTitleBarColor : _decorationColors->inactive()->titleBarBase);
+        return active ? (systemColor ? _systemActiveTitleBarColor : _decorationColors->active()->titleBarBase)
+                      : (systemColor ? _systemInactiveTitleBarColor : _decorationColors->inactive()->titleBarBase);
     }
 
     //* titlebar text color
     const QColor &titleBarTextColor(bool active, bool systemColor = false) const
     {
-        return active ? (systemColor ? _systemActiveTitleBarTextColor : _decorationColors->active()->titleBarText) : (systemColor ? _systemInactiveTitleBarTextColor : _decorationColors->inactive()->titleBarText);
+        return active ? (systemColor ? _systemActiveTitleBarTextColor : _decorationColors->active()->titleBarText)
+                      : (systemColor ? _systemInactiveTitleBarTextColor : _decorationColors->inactive()->titleBarText);
     }
 
     DecorationColors *decorationColors() const
@@ -406,6 +411,7 @@ private:
 
     //* KWin configuration
     KSharedConfig::Ptr _kwinConfig;
+    KSharedConfigPtr _colorSchemeConfig;
 
     //* decoration configuration
     QSharedPointer<InternalSettings> _decorationConfig;
